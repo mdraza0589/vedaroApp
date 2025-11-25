@@ -1,24 +1,31 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import type { DrawerContentComponentProps } from "@react-navigation/drawer";
+import { Drawer } from "expo-router/drawer";
+import React from "react";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import Header from "./components/appDrawer";
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: "(tabs)",
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Drawer
+      screenOptions={{
+        headerShown: false,
+        drawerType: "slide",
+        drawerStyle: {
+          width: "80%",
+        },
+      }}
+      drawerContent={(props: DrawerContentComponentProps) => (
+        <Header {...props} />
+      )}
+    >
+      <Drawer.Screen name="(tabs)" />
+      <Drawer.Screen name="index" />
+    </Drawer>
+
   );
 }
