@@ -51,10 +51,7 @@ export default function Header(props: DrawerContentComponentProps) {
         <View style={{ width: 90, height: 90 }}>
           <Image source={require('../../assets/images/vedaro-logo.png')} style={{ width: '100%', height: '100%' }} />
         </View>
-        <Text style={styles.name}>WELCOME TO,</Text>
-        <View style={styles.vedaroButton}>
-          <Text style={styles.vedaroText}>VEDARO</Text>
-        </View>
+        <Text style={styles.name}>VEDARO</Text>
       </View>
 
       <View style={styles.menuContainer}>
@@ -91,6 +88,9 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
     borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-evenly",
   },
   name: {
     color: "white",
@@ -126,3 +126,4 @@ const styles = StyleSheet.create({
     marginVertical: 15,
   },
 });
+

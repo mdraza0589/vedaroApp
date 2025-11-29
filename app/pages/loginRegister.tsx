@@ -1,6 +1,5 @@
 import { loginStaff } from "@/server/api";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 
 export default function LoginRegister() {
@@ -21,6 +21,8 @@ export default function LoginRegister() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingLogin, setCheckingLogin] = useState(true);
+  const [inputFilled, setInputFilled] = useState(true);
+
 
   // 🔍 Auto Login Check
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function LoginRegister() {
   // 🔑 Login Handler
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      alert("Please enter email and password");
+      setInputFilled(false);
       return;
     }
 
@@ -58,14 +60,18 @@ export default function LoginRegister() {
       }
     } catch (error) {
       console.log("LOGIN ERROR:", error);
-      alert("Network error — please try again later");
+      alert("check email and password");
     } finally {
       setLoading(false);
     }
   };
 
+
   // 🕒 Show Loader While Checking Login State
   if (checkingLogin) {
+    setTimeout(() => {
+      setCheckingLogin(false);
+    }, 1000);
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator size={40} />
@@ -89,6 +95,7 @@ export default function LoginRegister() {
       <Text style={styles.subtitle}>Sign in to your account</Text>
 
       {/* Email Input */}
+      {!inputFilled && <Text style={{ color: "red", marginBottom: 10 }}>Please enter email and password</Text>}
       <View style={styles.inputBox}>
         <MaterialIcons name="email" size={22} color="#0f2a1d" />
         <TextInput

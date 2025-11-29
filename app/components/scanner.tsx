@@ -1,5 +1,6 @@
 import { scanProduct } from "@/server/api";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -11,16 +12,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 
 export default function Scanner() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [cameraKey, setCameraKey] = useState(Date.now());
 
   useFocusEffect(
     useCallback(() => {
+      setCameraKey(Date.now());
       setScanned(false);
+      setTorchOn(false);
     }, [])
   );
 
@@ -56,9 +59,12 @@ export default function Scanner() {
     }
   };
 
+
+
   return (
     <View style={{ flex: 1 }}>
       <CameraView
+        key={cameraKey}
         style={{ flex: 1 }}
         enableTorch={torchOn}
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}

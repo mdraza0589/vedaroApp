@@ -1,13 +1,13 @@
 import { decreaseCartItem, getCartData, increaseCartItem } from "@/server/api";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Image,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -140,7 +140,8 @@ export default function CartPage() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
       <AppHeaderTop title="My Cart" />
 
       <ScrollView
@@ -258,3 +259,6 @@ const styles = StyleSheet.create({
   },
   checkoutText: { color: "white", fontWeight: "700", fontSize: 18 },
 });
+
+
+

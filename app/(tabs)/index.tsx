@@ -73,7 +73,7 @@ export default function Home() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <AppHeaderTop title="Jewellary Shop" />
 
       <ScrollView
@@ -84,9 +84,9 @@ export default function Home() {
 
         {/* Welcome Section */}
         <View style={styles.welcomeSection}>
-          <Text style={styles.greeting}>Hello 👋</Text>
-          <Text style={styles.name}>{profile?.name ?? "Guest"}</Text>
+          <Text style={styles.greeting}>Welcome to Vedaro</Text>
           <Text style={styles.subtitle}>Discover luxury jewellery and collections</Text>
+          <Text style={styles.name}>{profile?.name ?? "Guest"}</Text>
         </View>
 
         {/* Quick Actions */}
@@ -135,15 +135,14 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   greeting: {
-    fontSize: 18,
-    color: "#6B7280",
-    fontWeight: "500",
+    fontSize: 22,
+    fontWeight: "700",
   },
   name: {
     fontSize: 32,
     fontWeight: "800",
     color: "#0D2A1F",
-    marginTop: 2,
+    marginTop: 8,
     letterSpacing: 0.3,
   },
   subtitle: {

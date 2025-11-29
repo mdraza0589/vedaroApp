@@ -92,6 +92,7 @@ export default function ProfilePage() {
     return (
         <View style={styles.container}>
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
             <AppHeaderTop title="Profile" />
 
             <ScrollView

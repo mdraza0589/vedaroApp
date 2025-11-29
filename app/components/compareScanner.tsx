@@ -361,14 +361,16 @@ export default function CompareScanner() {
                         </View>
                     </View>
                 )}
+
+                {products.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="qr-code-outline" size={80} color="#999" />
+                        <Text style={styles.emptyStateText}>Start scanning items</Text>
+                    </View>
+                )}
+
             </ScrollView>
 
-            {products.length === 0 && (
-                <View style={styles.emptyState}>
-                    <Ionicons name="qr-code-outline" size={80} color="#999" />
-                    <Text style={styles.emptyStateText}>Start scanning items</Text>
-                </View>
-            )}
         </View>
     );
 }
@@ -470,6 +472,6 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    emptyState: { justifyContent: "center", alignItems: "center", marginTop: 80 },
+    emptyState: { justifyContent: "center", alignItems: "center", marginTop: 80, flex: 1 },
     emptyStateText: { fontSize: 18, color: "#777", marginTop: 10 },
 });
