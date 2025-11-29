@@ -1,104 +1,117 @@
+import { scanProduct } from "@/server/api";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BarcodeScanningResult,
-  CameraView,
-  useCameraPermissions,
-} from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
-import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function Scanner() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [torchOn, setTorchOn] = useState(false); // 🔥 TORCH STATE
+  const [torchOn, setTorchOn] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      setScanned(false);
+    }, [])
+  );
 
   if (!permission) return <View />;
+
   if (!permission.granted)
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 18, marginBottom: 20 }}>
-          Camera permission needed!
-        </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.btn}>
-          <Text style={{ color: "white" }}>Allow Camera</Text>
+        <Text style={{ fontSize: 18, marginBottom: 20 }}>Camera access required</Text>
+        <TouchableOpacity style={styles.btn} onPress={requestPermission}>
+          <Text style={{ color: "white" }}>Enable Camera</Text>
         </TouchableOpacity>
       </View>
     );
 
+  const handleScan = async (result: any) => {
+    if (scanned) return;
+    setScanned(true);
+    try {
+      const response = await scanProduct(result.data);
+      if (response.data?.product) {
+        router.push({
+          pathname: "/components/productDetails",
+          params: { data: JSON.stringify(response.data.product) },
+        });
+      } else {
+        Alert.alert("Invalid QR", "No product found.");
+        setScanned(false);
+      }
+    } catch {
+      Alert.alert("Error", "Scan failed. Try again.");
+      setScanned(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <CameraView
-        enableTorch={torchOn}    // 🔥 TORCH ON/OFF
-        onBarcodeScanned={(result: BarcodeScanningResult) => {
-          if (!scanned) {
-            setScanned(true);
-            console.log("Scanned Data:", result.data);
-
-            router.push({
-              pathname: "/components/productDetails",
-              params: { data: result.data }
-            });
-          }
-        }}
-
         style={{ flex: 1 }}
+        enableTorch={torchOn}
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+        onBarcodeScanned={scanned ? undefined : handleScan}
       />
 
       {/* Close Button */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={32} color="white" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.controlBtn, { top: 50, left: 20 }]}
+        onPress={() => router.push("/(tabs)")}
+      >
+        <Ionicons name="close" size={32} color="white" />
+      </TouchableOpacity>
 
-      {/* Scanner Frame */}
-      <View style={styles.scannerFrame} />
+      {/* Flash Button */}
+      <TouchableOpacity
+        style={[styles.controlBtn, { top: 50, right: 20 }]}
+        onPress={() => setTorchOn(!torchOn)}
+      >
+        <Ionicons
+          name={torchOn ? "flash" : "flash-off"}
+          size={30}
+          color="yellow"
+        />
+      </TouchableOpacity>
 
-      {/* Torch Button */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity onPress={() => setTorchOn(!torchOn)}>
-          <Ionicons
-            name={torchOn ? "flashlight" : "flashlight-outline"} // 🔥 icon changes
-            size={32}
-            color="white"
-          />
-        </TouchableOpacity>
-      </View>
+      {/* Scanning Overlay */}
+      {scanned && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="white" />
+          <Text style={{ color: "white", marginTop: 10 }}>Processing...</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  btn: { backgroundColor: "#0D2A1F", padding: 12, borderRadius: 10 },
+  overlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
   },
-  btn: {
-    backgroundColor: "#0D2A1F",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  header: {
+  controlBtn: {
     position: "absolute",
-    top: 50,
-    left: 20,
-  },
-  scannerFrame: {
-    width: 260,
-    height: 260,
-    borderWidth: 3,
-    borderColor: "white",
-    borderRadius: 20,
-    position: "absolute",
-    alignSelf: "center",
-    top: "30%",
-  },
-  bottomBar: {
-    position: "absolute",
-    bottom: 70,
-    alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.55)",
+    padding: 12,
+    borderRadius: 50,
+    zIndex: 999,
   },
 });

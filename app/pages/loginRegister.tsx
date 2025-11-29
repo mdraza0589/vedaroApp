@@ -1,186 +1,190 @@
+import { loginStaff } from "@/server/api";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
+import * as SecureStore from "expo-secure-store";
+
 export default function LoginRegister() {
-    const router = useRouter();
-    const [showPass, setShowPass] = useState(false);
+  const router = useRouter();
+  const [showPass, setShowPass] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checkingLogin, setCheckingLogin] = useState(true);
 
+  // 🔍 Auto Login Check
+  useEffect(() => {
+    const checkLogin = async () => {
+      const token = await SecureStore.getItemAsync("authToken");
+
+      if (token) {
+        global.authToken = token;
+        router.replace("/(tabs)");
+      } else {
+        setCheckingLogin(false);
+      }
+    };
+
+    checkLogin();
+  }, []);
+
+  // 🔑 Login Handler
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      alert("Please enter email and password");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await loginStaff({ email, password });
+
+      if (response.data?.token) {
+        await SecureStore.setItemAsync("authToken", response.data.token);
+        global.authToken = response.data.token;
+        router.replace("/(tabs)");
+      } else {
+        alert("Invalid login details");
+      }
+    } catch (error) {
+      console.log("LOGIN ERROR:", error);
+      alert("Network error — please try again later");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🕒 Show Loader While Checking Login State
+  if (checkingLogin) {
     return (
-        <View style={styles.container}>
-            {/* Skip Button */}
-            <TouchableOpacity
-                style={styles.skipBtn}
-                onPress={() => router.push('/(tabs)')}
-            >
-                <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
-
-            {/* Logo */}
-            <View style={styles.logoBox}>
-                {/* <Image
-          source={require("../assets/diamond.png")}
-          style={{ width: 60, height: 60, tintColor: "white" }}
-        /> */}
-            </View>
-
-            <Text style={styles.title}>Vedaro</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
-
-            {/* Mobile Number Field */}
-            <View style={styles.inputBox}>
-                <Ionicons name="call-outline" size={22} color="#B38A00" />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Mobile Number"
-                    placeholderTextColor="#888"
-                    keyboardType="number-pad"
-                />
-            </View>
-
-            {/* Password Field */}
-            <View style={styles.inputBox}>
-                <MaterialIcons name="lock-outline" size={22} color="#B38A00" />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    placeholderTextColor="#888"
-                    secureTextEntry={!showPass}
-                />
-
-                <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                    <Ionicons
-                        name={showPass ? "eye-off-outline" : "eye-outline"}
-                        size={22}
-                        color="#B38A00"
-                    />
-                </TouchableOpacity>
-            </View>
-
-            {/* Forgot Password */}
-            <TouchableOpacity
-                onPress={() => alert("Forgot Password clicked")}
-                style={{ alignSelf: "flex-end", marginRight: 40 }}
-            >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
-
-            {/* Login Button */}
-            <TouchableOpacity
-                style={styles.loginBtn}
-                onPress={() => alert("Login clicked")}
-            >
-                <Text style={styles.loginText}>Login</Text>
-            </TouchableOpacity>
-
-            {/* Sign Up Text */}
-            <Text style={styles.bottomText}>
-                Don't have an account?{" "}
-                <Text
-                    style={styles.signupText}
-                    onPress={() => alert("Sign Up clicked")}
-                >
-                    Sign Up
-                </Text>
-            </Text>
-        </View>
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size={40} />
+        <Text style={{ marginTop: 10 }}>Checking login...</Text>
+      </View>
     );
+  }
+
+  return (
+    <View style={styles.container}>
+
+      <View style={styles.logoBox}>
+        <Image
+          source={require("../../assets/images/vedaro-logo.png")}
+          resizeMode="contain"
+          style={{ width: 140, height: 140, borderRadius: 30 }}
+        />
+      </View>
+
+      <Text style={styles.title}>Vedaro</Text>
+      <Text style={styles.subtitle}>Sign in to your account</Text>
+
+      {/* Email Input */}
+      <View style={styles.inputBox}>
+        <MaterialIcons name="email" size={22} color="#0f2a1d" />
+        <TextInput
+          style={styles.input}
+          placeholder="Email Address"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+      </View>
+
+      {/* Password Input */}
+      <View style={styles.inputBox}>
+        <MaterialIcons name="lock-outline" size={22} color="#0f2a1d" />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry={!showPass}
+          value={password}
+          onChangeText={setPassword}
+        />
+        <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+          <Ionicons
+            name={showPass ? "eye-off-outline" : "eye-outline"}
+            size={22}
+            color="#0f2a1d"
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Login Button */}
+      <TouchableOpacity
+        style={[styles.loginBtn, loading && { opacity: 0.6 }]}
+        disabled={loading}
+        onPress={handleLogin}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.loginText}>Login</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#E9DFC5",
-        alignItems: "center",
-        paddingTop: 80,
-    },
-
-    skipBtn: {
-        position: "absolute",
-        top: 40,
-        right: 25,
-    },
-    skipText: {
-        fontSize: 16,
-        fontWeight: "500",
-        color: "black",
-    },
-
-    logoBox: {
-        width: 120,
-        height: 120,
-        backgroundColor: "#0D2A1F",
-        borderRadius: 30,
-        justifyContent: "center",
-        alignItems: "center",
-        marginBottom: 20,
-        marginTop: 30,
-    },
-
-    title: {
-        fontSize: 32,
-        fontWeight: "700",
-        color: "black",
-    },
-    subtitle: {
-        fontSize: 15,
-        color: "#505050",
-        marginBottom: 30,
-    },
-
-    inputBox: {
-        flexDirection: "row",
-        alignItems: "center",
-        width: "85%",
-        backgroundColor: "white",
-        padding: 15,
-        borderRadius: 20,
-        marginBottom: 20,
-        elevation: 4,
-        gap: 10,
-    },
-
-    input: {
-        flex: 1,
-        fontSize: 16,
-        color: "black",
-    },
-
-    forgotText: {
-        color: "#0D2A1F",
-        fontWeight: "600",
-        fontSize: 14,
-        marginBottom: 30,
-    },
-
-    loginBtn: {
-        width: "85%",
-        backgroundColor: "#0D2A1F",
-        padding: 18,
-        borderRadius: 40,
-        alignItems: "center",
-        marginBottom: 25,
-    },
-    loginText: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "white",
-    },
-
-    bottomText: {
-        fontSize: 15,
-        color: "#555",
-    },
-    signupText: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: "#0D2A1F",
-    },
+  container: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 80,
+    backgroundColor: "#f2ecdd",
+  },
+  loadingScreen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoBox: {
+    width: 120,
+    height: 120,
+    backgroundColor: "#0f2a1d",
+    borderRadius: 30,
+    marginBottom: 20,
+    marginTop: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#0f2a1d",
+    marginBottom: 30,
+  },
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "85%",
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 20,
+    marginBottom: 20,
+    elevation: 4,
+    gap: 10,
+  },
+  input: { flex: 1, fontSize: 16 },
+  loginBtn: {
+    width: "85%",
+    backgroundColor: "#0f2a1d",
+    padding: 18,
+    borderRadius: 40,
+    alignItems: "center",
+  },
+  loginText: { fontSize: 18, color: "white" },
 });

@@ -34,7 +34,7 @@ export default function AppHeaderTop({ title }: Props) {
 const styles = StyleSheet.create({
     header: {
         height: 90,
-        backgroundColor: "#0D2A1F",
+        backgroundColor: "#0f2a1d",
         flexDirection: "row",
         alignItems: "flex-end",
         justifyContent: "space-between",

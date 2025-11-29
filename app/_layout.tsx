@@ -4,12 +4,7 @@ import React from "react";
 
 import Header from "./components/appDrawer";
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
-
 export default function RootLayout() {
-
   return (
     <Drawer
       screenOptions={{
@@ -23,9 +18,11 @@ export default function RootLayout() {
         <Header {...props} />
       )}
     >
-      <Drawer.Screen name="(tabs)" />
+      {/* 👇 Ensure index loads FIRST */}
       <Drawer.Screen name="index" />
-    </Drawer>
 
+      {/* 👇 Tabs should load AFTER welcome/index page */}
+      <Drawer.Screen name="(tabs)" />
+    </Drawer>
   );
 }

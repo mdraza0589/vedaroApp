@@ -1,139 +1,611 @@
-import React from "react";
-import { Image, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { invoiceItemsHistory } from "@/server/api";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  LayoutAnimation,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
 import AppHeaderTop from "../components/appHeader";
 
 export default function HistoryPage() {
-  // Sample order data (replace later with API)
-  type OrderStatus = "Delivered" | "Cancelled" | "Shipped";
-  const statusStyle: Record<OrderStatus, any> = {
-    Delivered: styles.delivered,
-    Cancelled: styles.cancelled,
-    Shipped: styles.shipped,
+
+  const formatPrice = (value: any) => Number(value || 0).toFixed(2);
+
+  type InvoiceItem = {
+    product_id: number;
+    product_name: string;
+    image: string;
+    quantity?: number;
+    price: number;
+    total?: number;
+    actual_price?: number;
+
+    stock?: number;
+    weight?: string | number;
+    size?: string;
+    category?: string;
+    product_type?: string;
+    identifier?: string;
+
+    variant_id: number | null;
   };
 
+  type OrderItem = {
+    id: number;
+    customer_name: string;
+    price: number;
+    created_at: string;
+    status: "Delivered" | "Pending";
+    image: string;
+    items: InvoiceItem[];
+  };
 
-  const orders = [
-    {
-      id: 1,
-      title: "Organic Green Tea",
-      price: 249,
-      date: "12 Nov 2025 · 04:30 PM",
-      status: "Delivered",
-      img: "https://cdn.pixabay.com/photo/2017/01/31/21/22/tea-2020641_960_720.jpg"
-    },
-    {
-      id: 2,
-      title: "Natural Honey Bottle",
-      price: 199,
-      date: "08 Nov 2025 · 11:20 AM",
-      status: "Cancelled",
-      img: "https://cdn.pixabay.com/photo/2017/08/07/00/59/honey-2602315_960_720.jpg"
-    },
-    {
-      id: 3,
-      title: "Premium Almond Pack",
-      price: 499,
-      date: "05 Nov 2025 · 02:15 PM",
-      status: "Shipped",
-      img: "https://cdn.pixabay.com/photo/2016/11/18/16/51/almonds-1834984_960_720.jpg"
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
+  const [rotateAnim] = useState(new Animated.Value(0));
+
+  const statusStyle: Record<"Delivered" | "Pending", any> = {
+    Delivered: styles.delivered,
+    Pending: styles.pending
+  };
+
+  const statusConfig = {
+    Delivered: { label: "Delivered", icon: "✓" },
+    Pending: { label: "Processing", icon: "⏳" }
+  };
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      const res = await invoiceItemsHistory();
+
+      if (res.data?.data) {
+        const invoices = res.data.data;
+
+        const formatted = invoices.map((invoice: any) => {
+          return {
+            id: invoice.pending_invoice_id,
+            customer_name: invoice.customer_name || "Unknown Customer",
+            price: Number(invoice.grand_total || 0),
+            created_at: invoice.invoice_date,
+            status: invoice.status === "completed" ? "Delivered" : "Pending",
+            image: `https://vedaro.in/${invoice.items?.[0]?.product?.image || ""}`,
+            items: invoice.items.map((it: any) => {
+
+              const product = it.product;
+              const variant = it.variant;
+
+              // 🔥 FINAL STOCK LOGIC FIXED
+              const stock =
+                variant?.stock !== undefined && variant?.stock !== null
+                  ? Number(variant.stock)
+                  : product?.current_stock !== undefined && product?.current_stock !== null
+                    ? Number(product.current_stock)
+                    : product?.total_stock !== undefined && product?.total_stock !== null
+                      ? Number(product.total_stock)
+                      : it.quantity;
+
+
+              return {
+                product_id: Number(product?.id),
+                product_name: product?.name || "Unnamed",
+                image: `https://vedaro.in/${product?.image || ""}`,
+
+                quantity: it.quantity || 1,
+                price: Number(it.rate || it.amount),
+                total: Number(it.amount || it.total_with_tax),
+                actual_price: Number(it.rate || it.amount),
+
+                stock,
+
+                // ✅ FIXED logic: get weight from variant first
+                weight: variant?.weight || product?.weight || "N/A",
+
+                size: variant?.size || product?.size || "N/A",
+                category: product?.category || "N/A",
+                product_type: product?.product_type || variant?.type || "N/A",
+                identifier: product?.identifier || null,
+                variant_id: variant?.id || null,
+              };
+
+            })
+          };
+        });
+
+        setOrders(formatted);
+      }
+    } catch (err) {
+      console.log("History fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useFocusEffect(useCallback(() => { fetchHistory(); }, []));
+
+  const toggleOrder = (id: number) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    Animated.timing(rotateAnim, {
+      toValue: expandedOrder === id ? 0 : 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    setExpandedOrder(prev => prev === id ? null : id);
+  };
+
+  const handleClickProductDetail = (item: InvoiceItem) => {
+    console.log("📌 Product clicked from history:", item);
+
+    router.push({
+      pathname: "/pages/detailsHistory",
+      params: {
+        data: JSON.stringify(item), // send full object safely
+        source: "history"
+      }
+    });
+  };
+
+  const rotateIcon = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg']
+  });
 
   return (
-    <View style={{ flex: 1, backgroundColor: "white" }}>
-      <StatusBar
-        translucent={true}
-        backgroundColor="transparent"
-        barStyle={'light-content'}
-      />
-      <AppHeaderTop title="History" />
+    <View style={styles.screenContainer}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <AppHeaderTop title="Order History" />
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Your Orders</Text>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerSection}>
+          <Text style={styles.heading}>Your Orders</Text>
+          <Text style={styles.subtitle}>Track and manage your order history</Text>
+        </View>
 
-        {orders.map((order) => (
-          <View key={order.id} style={styles.card}>
-            <Image source={{ uri: order.img }} style={styles.img} />
-
-            <View style={styles.infoContainer}>
-              <Text style={styles.title}>{order.title}</Text>
-              <Text style={styles.price}>₹{order.price}</Text>
-              <Text style={styles.date}>{order.date}</Text>
-
-              <Text style={[styles.status, statusStyle[order.status as OrderStatus]]}>
-                {order.status}
-              </Text>
-
+        {loading && (
+          <View style={styles.loaderWrapper}>
+            <View style={styles.loadingContent}>
+              <ActivityIndicator size="large" color="#0D2A1F" />
+              <Text style={styles.loadingText}>Loading your orders...</Text>
             </View>
           </View>
-        ))}
+        )}
+
+        {!loading && orders.length === 0 && (
+          <View style={styles.emptyWrapper}>
+            <View style={styles.emptyIllustration}>
+              <Text style={styles.emptyIcon}>📦</Text>
+            </View>
+            <Text style={styles.emptyTitle}>No orders yet</Text>
+            <Text style={styles.emptySubtitle}>Your order history will appear here</Text>
+          </View>
+        )}
+
+        {!loading && orders.length > 0 && (
+          <View style={styles.ordersList}>
+            {[...orders].reverse().map((order) => (
+              <View key={order.id} style={styles.orderBlock}>
+                <TouchableOpacity
+                  onPress={() => toggleOrder(order.id)}
+                  style={styles.card}
+                  activeOpacity={0.8}
+                >
+
+
+                  <View style={styles.infoContainer}>
+                    <View style={styles.topRow}>
+                      <View style={styles.customerInfo}>
+                        <Text style={styles.customerName}>{order.customer_name}</Text>
+                        <Text style={styles.orderDate}>
+                          {new Date(order.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </Text>
+                      </View>
+                      <Animated.Text style={[styles.expandIcon, { transform: [{ rotate: rotateIcon }] }]}>
+                        ⌄
+                      </Animated.Text>
+                    </View>
+
+                    <View style={styles.bottomRow}>
+
+                      <View style={styles.priceSection}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.price}>₹{formatPrice(order.price)}</Text>
+                      </View>
+
+                      <View style={styles.itemCountBadge}>
+                        <Text style={styles.itemCountText}>{order.items.length}</Text>
+                      </View>
+
+                      <View style={styles.statusSection}>
+                        <View style={[styles.statusBadge, statusStyle[order.status]]}>
+                          <Text style={styles.statusIcon}>
+                            {statusConfig[order.status].icon}
+                          </Text>
+                          <Text style={styles.statusText}>
+                            {statusConfig[order.status].label}
+                          </Text>
+                        </View>
+                      </View>
+
+
+                    </View>
+
+
+                  </View>
+                </TouchableOpacity>
+
+                {expandedOrder === order.id && (
+                  <View style={styles.itemsContainer}>
+                    <View style={styles.itemsHeader}>
+                      <Text style={styles.itemsHeading}>Order Items</Text>
+                      <Text style={styles.itemsSubtitle}>{order.items.length} items</Text>
+                    </View>
+
+                    <View style={styles.itemsList}>
+                      {order.items.map((it, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.itemCard}
+                          activeOpacity={0.7}
+                          onPress={() => handleClickProductDetail(it)}
+                        >
+                          <View style={styles.itemImageContainer}>
+                            <Image
+                              source={{ uri: it.image }}
+                              style={styles.itemImage}
+                            />
+                          </View>
+
+                          <View style={styles.itemDetails}>
+                            <Text style={styles.itemName} numberOfLines={2}>
+                              {it.product_name}
+                            </Text>
+
+                            <View style={styles.itemMeta}>
+                              <View style={styles.metaRow}>
+                                <Text style={styles.metaLabel}>Qty:</Text>
+                                <Text style={styles.metaValue}>{it.quantity}</Text>
+                              </View>
+                              <View style={styles.metaRow}>
+                                <Text style={styles.metaLabel}>Price:</Text>
+                                <Text style={styles.itemPrice}>₹{formatPrice(it.total)}</Text>
+                              </View>
+                            </View>
+
+                            <View style={styles.stockRow}>
+                              <View style={[
+                                styles.stockIndicator,
+                                it.stock && it.stock > 0 ? styles.inStock : styles.outOfStock
+                              ]} />
+                              <Text style={styles.stockText}>
+                                Stock: {it.stock}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.chevronContainer}>
+                            <Text style={styles.chevron}>›</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: "#f2ecdd"
+  },
   container: {
-    padding: 16
+    flexGrow: 1,
+    padding: 20
+  },
+  headerSection: {
+    marginBottom: 24,
   },
   heading: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "700",
-    marginBottom: 12,
-    color: "#0D2A1F"
+    color: "#0D2A1F",
+    marginBottom: 4
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "500"
+  },
+  ordersList: {
+    gap: 16,
+  },
+  orderBlock: {
+    borderRadius: 20,
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: "hidden",
   },
   card: {
-    backgroundColor: "white",
     flexDirection: "row",
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 16,
-    elevation: 3,
+    padding: 20,
+    alignItems: "center",
   },
-  img: {
+  orderImage: {
     width: 70,
     height: 70,
-    borderRadius: 10,
-    marginRight: 12
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC"
+  },
+  itemCountBadge: {
+    backgroundColor: "#0D2A1F",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 10
+  },
+  itemCountText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
   },
   infoContainer: {
-    flex: 1
+    flex: 1,
+    gap: 12,
   },
-  title: {
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  customerInfo: {
+    flex: 1,
+  },
+  customerName: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#000"
+    color: "#0D2A1F",
+    marginBottom: 2,
+  },
+  orderDate: {
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "500"
+  },
+  expandIcon: {
+    fontSize: 18,
+    color: "#64748B",
+    marginLeft: 8,
+  },
+  bottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+  },
+  priceSection: {
+    flex: 1,
+  },
+  totalLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "500",
+    marginBottom: 2,
   },
   price: {
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: "700",
-    color: "green",
-    marginTop: 2
+    color: "#0D2A1F"
   },
-  date: {
-    fontSize: 13,
-    color: "#555",
-    marginVertical: 4
+  statusSection: {
+    alignItems: "flex-end",
   },
-  status: {
-    paddingVertical: 4,
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  statusIcon: {
+    fontSize: 12,
     color: "white",
-    alignSelf: "flex-start",
-    fontSize: 13,
+  },
+  statusText: {
+    fontSize: 12,
     fontWeight: "600",
-    marginTop: 4
+    color: "white",
   },
-
-  // Status Colors
   delivered: {
-    backgroundColor: "green"
+    backgroundColor: "#059669"
   },
-  cancelled: {
-    backgroundColor: "red"
+  pending: {
+    backgroundColor: "#F59E0B"
   },
-  shipped: {
-    backgroundColor: "#1E56FF"
-  }
+  itemsContainer: {
+    backgroundColor: "#F8FAFC",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingVertical: 20,
+  },
+  itemsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  itemsHeading: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0D2A1F"
+  },
+  itemsSubtitle: {
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  itemsList: {
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  itemCard: {
+    flexDirection: "row",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  itemImageContainer: {
+    marginRight: 12,
+  },
+  itemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC"
+  },
+  itemDetails: {
+    flex: 1,
+    gap: 6,
+  },
+  itemName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0D2A1F",
+    lineHeight: 20,
+  },
+  itemMeta: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: "#64748B",
+  },
+  metaValue: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#0D2A1F",
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#059669"
+  },
+  stockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  stockIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  inStock: {
+    backgroundColor: "#10B981",
+  },
+  outOfStock: {
+    backgroundColor: "#EF4444",
+  },
+  stockText: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "500"
+  },
+  chevronContainer: {
+    marginLeft: 8,
+  },
+  chevron: {
+    fontSize: 18,
+    color: "#64748B",
+    fontWeight: "bold",
+  },
+  loaderWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 300,
+  },
+  loadingContent: {
+    alignItems: "center",
+    gap: 16,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: "#64748B",
+    fontWeight: "500"
+  },
+  emptyWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 400,
+    paddingHorizontal: 40,
+  },
+  emptyIllustration: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  emptyIcon: {
+    fontSize: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#0D2A1F",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 22,
+  },
 });
